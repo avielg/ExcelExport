@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
   s.name         = "ExcelExport"
   s.version      = "0.1"
-  s.summary      = ""
+  s.summary      = "Create Excel spreadsheets from scratch. Built with Swift 3"
   s.description  = <<-DESC
     Your description here.
   DESC
