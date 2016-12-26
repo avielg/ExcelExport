@@ -77,9 +77,9 @@ extension TextAttribute {
 
 
 public struct ExcelCell {
-    let value: String
-    let attributes: [TextAttribute]
-    let colspan: Int?
+    public let value: String
+    public let attributes: [TextAttribute]
+    public let colspan: Int?
     
     public enum DataType: String { case string="String", dateTime="DateTime" }
     let type: DataType
@@ -101,8 +101,8 @@ public struct ExcelCell {
 
 
 public struct ExcelRow {
-    let cells: [ExcelCell]
-    let height: Int?
+    public let cells: [ExcelCell]
+    public let height: Int?
     
     public init(_ cells: [ExcelCell], height: Int? = nil) {
         self.cells = cells
@@ -111,8 +111,8 @@ public struct ExcelRow {
 }
 
 public struct ExcelSheet {
-    let rows: [ExcelRow]
-    let name: String
+    public let rows: [ExcelRow]
+    public let name: String
     
     public init(_ rows: [ExcelRow], name: String) {
         self.rows = rows
