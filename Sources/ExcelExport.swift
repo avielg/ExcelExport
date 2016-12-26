@@ -111,25 +111,12 @@ public struct ExcelRow {
 }
 
 public struct ExcelSheet {
-    
-    enum Options {
-        case printGridlines
-        
-        var parsed: String {
-            switch self {
-            case .printGridlines: return Parser.x.print(Parser.x.gridLines())
-            }
-        }
-    }
-    
     let rows: [ExcelRow]
     let name: String
-    let options: [Options]
     
     public init(_ rows: [ExcelRow], name: String) {
         self.rows = rows
         self.name = name
-        self.options = []
     }
 }
 
@@ -214,39 +201,6 @@ public class ExcelExport {
         }
     }
     
-    private class func performExport(_ sheet: ExcelSheet, fileName: String) -> URL? {
-        let file = fileUrl(name: fileName)
-        
-        // build rows
-        let rowsValue = sheet.rows.map(Parser.build).joined()
-        
-        
-        // build file content
-        let templatePreLead = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:x='urn:schemas-microsoft-com:office:excel' xmlns='http://www.w3.org/TR/REC-html40'><head><meta http-equiv=Content-Type content='text/html; charset=UTF-8'><!--[if gte mso 9]><xml>"
-        let templatePreTrail = "</xml><![endif]--></head><body><table>"
-        
-        let worksheetName = Parser.x.name(sheet.name)
-        let worksheetOps = Parser.build(sheet.options)
-        let worksheet = Parser.x.excelWorksheet(worksheetName + worksheetOps)
-        let workbook = Parser.x.excelWorkbook(Parser.x.excelWorksheets(worksheet))
-        
-        let templatePre = [templatePreLead, workbook, templatePreTrail].joined()
-        let templatePost = "</table border=\"1\"></body></html>"
-        
-        let content = [templatePre, rowsValue, templatePost].joined()
-        
-        // write content to file
-        do {
-            try content.write(to: file, atomically: true, encoding: .utf8)
-            print("\(sheet.rows.count) Lines written to file")
-            return file
-        } catch {
-            print("Can't write \(sheet.rows.count) to file! [\(error)]")
-            return nil
-        }
-    }
-    
-    
     class func fileUrl(name: String) -> URL {
         let docsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         return docsDir.appendingPathComponent("\(name).xls")
@@ -254,55 +208,6 @@ public class ExcelExport {
     
 }
 
-class Parser {
-    class func build(_ cell: ExcelCell) -> String {
-        let cols = cell.colspan.map{ " colspan=\"\($0)\"" } ?? ""
-        let style = TextAttribute.styleValue(for: cell.attributes)
-        return "<td\(cols) \(style)>\(cell.value)</td>"
-    }
-    
-    class func build(_ row: ExcelRow) -> String {
-        return row.cells
-            .map(Parser.build)
-            .reduce("<tr>", +)
-            .appending("</tr>")
-    }
-    
-    class func build(_ sheetOptions: [ExcelSheet.Options]) -> String {
-        let ops = sheetOptions
-            .map(Parser.build)
-            .joined()
-        return x.worksheetOptions(ops)
-    }
-    
-    class func build(_ sheetOption: ExcelSheet.Options) -> String {
-        return sheetOption.parsed
-    }
-    
-    /// parser for excel syntax 'x' tags
-    struct x {
-        
-        // wrap
-        static func name(_ v: String) -> String { return parse("Name", v) }
-        static func print(_ v: String) -> String { return parse("Print", v) }
-        static func worksheetOptions(_ v: String) -> String { return parse("WorksheetOptions", v) }
-        static func excelWorksheet(_ v: String) -> String { return parse("ExcelWorksheet", v) }
-        static func excelWorksheets(_ v: String) -> String { return parse("ExcelWorksheets", v) }
-        static func excelWorkbook(_ v: String) -> String { return parse("ExcelWorkbook", v) }
-        
-        //single
-        static func gridLines() -> String { return single("GridLines", "") }
-        
-        //general
-        static func single(_ name: String, _ v: String) -> String {
-            return "<x:\(name)/>"
-        }
-        static func parse(_ name: String, _ v: String) -> String {
-            return "<x:\(name)>\(v)</x:\(name)>"
-        }
-    }
-
-}
 
 private extension Color {
     
