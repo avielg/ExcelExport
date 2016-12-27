@@ -35,13 +35,21 @@
 
 public enum TextAttribute {
     
-    public enum FontStyle {
+    public enum FontStyle: Equatable {
         case color(Color), bold
         
         var parsed: String {
             switch self {
             case .bold: return "ss:Bold=\"1\""
             case .color(let c): return "ss:Color=\"\(c.hexString())\""
+            }
+        }
+        
+        public static func ==(lhs: FontStyle, rhs: FontStyle) -> Bool {
+            switch (lhs, rhs) {
+            case (.bold, .bold): return true
+            case (.color(let l), .color(let r)): return l == r
+            default: return false
             }
         }
     }
@@ -62,6 +70,19 @@ public enum TextAttribute {
             return "<Font " + styles.map{$0.parsed}.joined(separator: " ") + "/>"
         }
     }
+    
+    public static func a(lhs: TextAttribute, rhs: TextAttribute) -> Bool {
+        switch (lhs, rhs) {
+        case (.backgroundColor(let l), .backgroundColor(let r)): return l == r
+        case (.font(let l), .font(let r)): return l == r
+        case (.format(let l), .format(let r)): return l == r
+        default: return false
+        }
+    }
+    
+//    static func compare(_ attributes: [TextAttribute], with: [TextAttribute]) -> Bool {
+//        
+//    }
     
     static func styleValue(for textAttributes: [TextAttribute]) -> String {
         guard textAttributes.count > 0 else { return "" }
@@ -134,12 +155,12 @@ public class ExcelExport {
         let file = fileUrl(name: fileName)
         
         // all styles for this wokrbook
-        var styles = [String]()
+        var styles = [String : String]() // id : value
         
         // adds new style, returns it's ID
         let appendStyle: (String)->String = {
             let id = "s\(styles.count)"
-            styles.append("<Style ss:ID=\"\(id)\">\($0)</Style>")
+            styles[id] = "<Style ss:ID=\"\(id)\">\($0)</Style>"
             return id
         }
         
@@ -157,8 +178,13 @@ public class ExcelExport {
                     let data = "<Data ss:Type=\"\(cell.type.rawValue)\">\(cell.value)</Data>"
                     
                     //style
+                    let styleId: String
                     let styleValue = TextAttribute.styleValue(for: cell.attributes)
-                    let styleId = appendStyle(styleValue)
+                    if let id = styles.filter({ k, v in v == styleValue }).first?.key {
+                        styleId = id //reuse existing style
+                    } else {
+                        styleId = appendStyle(styleValue) //create new style
+                    }
                     
                     let merge = cell.colspan.map{ "ss:MergeAcross=\"\($0)\"" } ?? ""
                     
@@ -186,7 +212,7 @@ public class ExcelExport {
         let workbookLead = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><?mso-application progid=\"Excel.Sheet\"?><Workbook xmlns=\"urn:schemas-microsoft-com:office:spreadsheet\" xmlns:x=\"urn:schemas-microsoft-com:office:excel\" xmlns:ss=\"urn:schemas-microsoft-com:office:spreadsheet\" xmlns:html=\"http://www.w3.org/TR/REC-html40\">"
         let workbookTrail = "</Workbook>"
         
-        let stylesValue = "<Styles>\(styles.joined())</Styles>"
+        let stylesValue = "<Styles>\(styles.values.joined())</Styles>"
         
         let content = [workbookLead, stylesValue, sheetsValues.joined(), workbookTrail].joined()
         let totalRows = sheets.flatMap{ $0.rows }.count
