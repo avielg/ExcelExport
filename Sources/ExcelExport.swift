@@ -125,7 +125,8 @@ public class ExcelExport {
     
     public class func export(_ sheets: [ExcelSheet], fileName: String, done: @escaping (URL?)->Void) {
         DispatchQueue.global(qos: .background).async {
-            done(performXMLExport(sheets, fileName: fileName))
+            let resultUrl = performXMLExport(sheets, fileName: fileName)
+            DispatchQueue.main.async{ done(resultUrl) }
         }
     }
     
