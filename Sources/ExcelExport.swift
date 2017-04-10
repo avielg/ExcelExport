@@ -180,10 +180,12 @@ public class ExcelExport {
                     //style
                     let styleId: String
                     let styleValue = TextAttribute.styleValue(for: cell.attributes)
-                    if let id = styles.filter({ k, v in v == styleValue }).first?.key {
+                    if let id = styles.first(where: { k, v in v.contains(styleValue) })?.key {
                         styleId = id //reuse existing style
+                        print("reusing [\(id)] \(styleValue)")
                     } else {
                         styleId = appendStyle(styleValue) //create new style
+                        print("new [\(styleId)] \(styleValue)")
                     }
                     
                     let merge = cell.colspan.map{ "ss:MergeAcross=\"\($0)\"" } ?? ""
