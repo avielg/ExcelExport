@@ -24,13 +24,67 @@
 
 import Foundation
 import XCTest
-import ExcelExport
+@testable import ExcelExport
 
 class ExcelExportTests: XCTestCase {
-    func testExample() {
-        // This is an example of a functional test case.
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        //// XCTAssertEqual(ExcelExport().text, "Hello, World!")
+    
+    func testCellValue() {
+        let cell = ExcelCell("15")
+        
+        XCTAssertEqual(cell.value, "15")
+    }
+    
+    func testCellAttribute() {
+        let cell = ExcelCell("", [TextAttribute.font([TextAttribute.FontStyle.bold,TextAttribute.FontStyle.color(Color.blue)])])
+        XCTAssertEqual(TextAttribute.styleValue(for: cell.attributes), "<Font ss:Bold=\"1\" ss:Color=\"#0000FF\"/>")
+    }
+    
+    func testRow() {
+        let cell = ExcelCell("33")
+        let row = ExcelRow([cell])
+        
+        XCTAssertEqual(row.cells.count, 1)
+    }
+    
+    func testSheet() {
+        let cell = ExcelCell("53")
+        let row = ExcelRow([cell])
+        let sheet = ExcelSheet([row], name: "Test")
+        
+        XCTAssertEqual(sheet.rows.count, 1)
+        XCTAssertEqual(sheet.name, "Test")
+    }
+    
+    func testExport() {
+        let expectation = self.expectation(description: "Async creation of Excel file.")
+        var exportResultCalled: Bool = false
+
+        // arrange
+        let cells = [ExcelCell("Age : "), ExcelCell("50", [TextAttribute.backgroundColor(Color.yellow), TextAttribute.font([TextAttribute.FontStyle.bold])])]
+        let sheet = ExcelSheet([ExcelRow(cells), ExcelRow(cells), ExcelRow(cells)], name: "Test")
+        let sheet2 = ExcelSheet([ExcelRow(cells)], name: "Test2")
+        
+        // act
+        ExcelExport.export([sheet,sheet2], fileName: "test") { url in
+            print("done function called with \(String(describing: url))")
+            if let file = url {
+                do {
+                    exportResultCalled = try file.checkResourceIsReachable()
+                    print("... the file \(file) exist and is reachable \(exportResultCalled).")
+                }
+                catch {
+                    print("... url not reachable (not a file on the local system.")
+                }
+            }
+            else {
+                print("... no file produced.")
+            }
+            expectation.fulfill()
+        }
+        
+        // assert
+        waitForExpectations(timeout: 1)
+        XCTAssertTrue(exportResultCalled, "Le fichier n'a pas été créé.")
     }
 }
 

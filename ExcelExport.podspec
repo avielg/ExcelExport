@@ -1,9 +1,9 @@
 Pod::Spec.new do |s|
   s.name         = "ExcelExport"
   s.version      = "0.1"
-  s.summary      = "Create Excel spreadsheets from scratch. Built with Swift 3"
+  s.summary      = "Create Excel spreadsheets from scratch. Built with Swift 3. Updated to Swift 5."
   s.description  = <<-DESC
-    Your description here.
+    Package to write Excel files.
   DESC
   s.homepage     = "https://github.com/avielg/ExcelExport.git"
   s.license      = { :type => "MIT", :file => "LICENSE" }

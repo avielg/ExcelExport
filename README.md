@@ -1,6 +1,6 @@
 # ExcelExport
 
-Create Excel spreadsheets from scratch. Built with Swift 3
+Create Excel spreadsheets from scratch. Built with Swift 3, updated to Swift 5.
 
 
 ### Excel XML Syntax
