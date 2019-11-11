@@ -101,6 +101,7 @@ public struct ExcelCell {
     public let value: String
     public let attributes: [TextAttribute]
     public let colspan: Int?
+    public let rowspan: Int?
     
     public enum DataType: String { case string="String", dateTime="DateTime" }
     let type: DataType
@@ -110,13 +111,15 @@ public struct ExcelCell {
         attributes = []
         colspan = nil
         type = .string
+        rowspan = nil
     }
     
-    public init(_ value: String, _ attributes: [TextAttribute], _ type: DataType = .string, colspan: Int? = nil) {
+    public init(_ value: String, _ attributes: [TextAttribute], _ type: DataType = .string, colspan: Int? = nil, rowspan: Int? = nil) {
         self.value = value
         self.attributes = attributes
         self.colspan = colspan
         self.type = type
+        self.rowspan = rowspan
     }
 }
 
@@ -152,6 +155,10 @@ public class ExcelExport {
     }
     
     private class func performXMLExport(_ sheets: [ExcelSheet], fileName: String) -> URL? {
+        struct RemainingSpan {
+            var remainingRows : Int
+            var colSpan : Int
+        }
         let file = fileUrl(name: fileName)
         
         // all styles for this wokrbook
@@ -165,14 +172,20 @@ public class ExcelExport {
         }
         
         var sheetsValues = [String]()
+        var remainingSpan = [RemainingSpan]()
         for sheet in sheets {
             
             // build sheet
+            var vIndex = 0
             var rows = [String]()
             for row in sheet.rows {
-
+                
                 var cells = [String]()
-                for cell in row.cells {
+                vIndex = 0
+                for (cellIndex, cell) in row.cells.enumerated() {
+                    while vIndex < remainingSpan.count && remainingSpan[vIndex].remainingRows > 0 {
+                        vIndex += (remainingSpan[vIndex].colSpan + 1)
+                    }
                     
                     //data
                     let data = "<Data ss:Type=\"\(cell.type.rawValue)\">\(cell.value)</Data>"
@@ -186,15 +199,31 @@ public class ExcelExport {
                         styleId = appendStyle(styleValue) //create new style
                     }
                     
-                    let merge = cell.colspan.map{ "ss:MergeAcross=\"\($0)\"" } ?? ""
+                    let mergeAcross = cell.colspan.map{ " ss:MergeAcross=\"\($0)\"" } ?? ""
+                    let mergeDown = cell.rowspan.map{ " ss:MergeDown=\"\($0)\"" } ?? ""
+                    
+                    var indexAttribute = ""
+                    if vIndex != cellIndex {
+                        indexAttribute = " ss:Index=\"\(vIndex+1)\""
+                    }
                     
                     //combine
-                    let lead = "<Cell ss:StyleID=\"\(styleId)\" \(merge)>"
+                    let lead = "<Cell ss:StyleID=\"\(styleId)\"\(mergeAcross)\(mergeDown)\(indexAttribute)>"
                     let trail = "</Cell>"
                     
                     cells.append([lead, data, trail].joined())
+                    
+                    // Setup mergeDown cells
+                    if let newMergeDownCount = cell.rowspan {
+                        while remainingSpan.count <= vIndex {
+                            remainingSpan.append(RemainingSpan(remainingRows: 0, colSpan: 0))
+                        }
+                        remainingSpan[vIndex] = RemainingSpan(remainingRows: newMergeDownCount, colSpan: cell.colspan ?? 0)
+                    } else if vIndex < remainingSpan.count && remainingSpan[vIndex].remainingRows > 0 {
+                        remainingSpan[vIndex].remainingRows -= 1
+                    }
+                    vIndex += 1
                 }
-                
                 
                 let rowOps = row.height.map{ "ss:Height=\"\($0)\"" } ?? ""
                 let lead = "<Row \(rowOps)>"
