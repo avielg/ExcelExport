@@ -127,6 +127,23 @@ class ExcelExportTests: XCTestCase {
         XCTAssertEqual(valueOn(url, row: 2, cell: 2), "4")
         XCTAssertEqual(valueOn(url, row: 3, cell: 1), "2")
     }
+    
+    func testMergeDownOnTwoSubsequentRowBlock() {
+        let row1 = ExcelRow([ExcelCell("cell1 row1 mergedown 2", [], rowspan: 2),ExcelCell("cell2 row1")])
+        let row2 = ExcelRow([ExcelCell("cell1 row2")])
+        let row3 = ExcelRow([ExcelCell("cell1 row3")])
+        let row4 = ExcelRow([ExcelCell("cell1 row4 mergedown 2", [], rowspan: 2),ExcelCell("cell2 row4")])
+        let row5 = ExcelRow([ExcelCell("cell1 row5")])
+        let row6 = ExcelRow([ExcelCell("cell1 row6")])
+        let sheet1 = ExcelSheet([row1,row2,row3,row4,row5,row6], name: "Sheet1")
+        
+        let (exportResultCalled, url) = export([sheet1])
+        
+        XCTAssertTrue(exportResultCalled, "No file created.")
+        XCTAssertEqual(valueOn(url, row: 2, cell: 1), "2")
+        XCTAssertEqual(valueOn(url, row: 4, cell: 1), nil)
+        XCTAssertEqual(valueOn(url, row: 5, cell: 1), "2")
+    }
 
     func testExport() {
         // arrange

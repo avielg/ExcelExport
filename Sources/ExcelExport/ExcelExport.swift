@@ -158,6 +158,9 @@ public class ExcelExport {
         struct RemainingSpan {
             var remainingRows : Int
             var colSpan : Int
+            var description : String {
+                return "remainingRows: \(remainingRows), colSpan: \(colSpan)"
+            }
         }
         let file = fileUrl(name: fileName)
         
@@ -184,6 +187,8 @@ public class ExcelExport {
                 vIndex = 0
                 for (cellIndex, cell) in row.cells.enumerated() {
                     while vIndex < remainingSpan.count && remainingSpan[vIndex].remainingRows > 0 {
+                        remainingSpan[vIndex].remainingRows -= 1
+                        print("udated: \(remainingSpan[vIndex])")
                         vIndex += (remainingSpan[vIndex].colSpan + 1)
                     }
                     
@@ -214,13 +219,13 @@ public class ExcelExport {
                     cells.append([lead, data, trail].joined())
                     
                     // Setup mergeDown cells
+                    print("vIndex: \(vIndex)")
                     if let newMergeDownCount = cell.rowspan {
                         while remainingSpan.count <= vIndex {
                             remainingSpan.append(RemainingSpan(remainingRows: 0, colSpan: 0))
                         }
                         remainingSpan[vIndex] = RemainingSpan(remainingRows: newMergeDownCount, colSpan: cell.colspan ?? 0)
-                    } else if vIndex < remainingSpan.count && remainingSpan[vIndex].remainingRows > 0 {
-                        remainingSpan[vIndex].remainingRows -= 1
+                        print("new: \(remainingSpan[vIndex])")
                     }
                     vIndex += 1
                 }
