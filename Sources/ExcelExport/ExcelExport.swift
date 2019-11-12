@@ -235,8 +235,9 @@ public class ExcelExport {
             let lead = "<Worksheet ss:Name=\"\(sheet.name)\"><Table>"
             let trail = "</Table></Worksheet>"
             sheetsValues.append([lead, rows.joined(), trail].joined())
+            
+            remainingSpan = [RemainingSpan]()
         }
-        
         
         let workbookLead = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><?mso-application progid=\"Excel.Sheet\"?><Workbook xmlns=\"urn:schemas-microsoft-com:office:spreadsheet\" xmlns:x=\"urn:schemas-microsoft-com:office:excel\" xmlns:ss=\"urn:schemas-microsoft-com:office:spreadsheet\" xmlns:html=\"http://www.w3.org/TR/REC-html40\">"
         let workbookTrail = "</Workbook>"

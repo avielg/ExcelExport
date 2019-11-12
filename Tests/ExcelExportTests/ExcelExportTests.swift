@@ -99,19 +99,35 @@ class ExcelExportTests: XCTestCase {
         XCTAssertEqual(valueOn(url, row: 2, cell: 3), "4", "Oups, third cell index on second row should be 4.")
     }
     
+    func testMergeDownResetBetweenSheet() {
+        let row1 = ExcelRow([ExcelCell("cell1 row1 mergedown 2", [], rowspan: 2),ExcelCell("cell2 row1"),ExcelCell("cell3 row1 mergedown 2", [], rowspan: 2),ExcelCell("cell4 row1")])
+        let row2 = ExcelRow([ExcelCell("cell1 row2"),ExcelCell("cell2 row2")])
+        let sheet1 = ExcelSheet([row1,row2], name: "Sheet1")
+        let row3 = ExcelRow([ExcelCell("cell1 row3"),ExcelCell("cell2 row3")])
+        let sheet2 = ExcelSheet([row3], name: "Sheet2")
+        
+        let (exportResultCalled, url) = export([sheet1, sheet2])
+        
+        XCTAssertTrue(exportResultCalled, "No file created.")
+        XCTAssertEqual(valueOn(url, row: 2, cell: 1), "2")
+        XCTAssertEqual(valueOn(url, row: 2, cell: 2), "4")
+        XCTAssertEqual(valueOn(url, sheet: 2, row: 1, cell: 1), nil)
+    }
+    
     func testMergeDownIn2Columns() {
         let row1 = ExcelRow([ExcelCell("cell1 row1 mergedown 2", [], rowspan: 2),ExcelCell("cell2 row1"),ExcelCell("cell3 row1 mergedown 2", [], rowspan: 2),ExcelCell("cell4 row1")])
         let row2 = ExcelRow([ExcelCell("cell1 row2"),ExcelCell("cell2 row2")])
-        let sheet = ExcelSheet([row1,row2], name: "Sheet1")
-
-        print("Name: \(name)")
+        let row3 = ExcelRow([ExcelCell("cell1 row3"),ExcelCell("cell2 row3")])
+        let sheet = ExcelSheet([row1,row2,row3], name: "Sheet1")
+        
         let (exportResultCalled, url) = export([sheet])
         
         XCTAssertTrue(exportResultCalled, "No file created.")
         XCTAssertEqual(valueOn(url, row: 2, cell: 1), "2")
         XCTAssertEqual(valueOn(url, row: 2, cell: 2), "4")
+        XCTAssertEqual(valueOn(url, row: 3, cell: 1), "2")
     }
-    
+
     func testExport() {
         // arrange
         let cells = [ExcelCell("Age : "), ExcelCell("50", [TextAttribute.backgroundColor(Color.yellow), TextAttribute.font([TextAttribute.FontStyle.bold])])]
@@ -126,21 +142,27 @@ class ExcelExportTests: XCTestCase {
     }
     
     class ParserDelegate : NSObject, XMLParserDelegate {
+        var sheetNumberToCheck = 0
         var rowNumberToCheck = 0
         var cellNumberToCheck = 0
         var attributeName = "ss:Index"
+        private var currentSheet = 0
         private var currentRow = 0
         private var currentCell = 0
         var valueFound : String? = nil
         
         func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String]) {
             switch elementName {
+                case "Worksheet":
+                    currentSheet+=1
+                    currentRow = 0
+                    currentCell = 0
                 case "Row":
                     currentRow+=1
                     currentCell=0
                 case "Cell":
                     currentCell+=1
-                    if currentRow == rowNumberToCheck && currentCell == cellNumberToCheck {
+                    if currentSheet == sheetNumberToCheck && currentRow == rowNumberToCheck && currentCell == cellNumberToCheck {
                         valueFound = attributeDict[attributeName]
                     }
                 default: break
@@ -160,11 +182,12 @@ class ExcelExportTests: XCTestCase {
         }
     }
 
-    fileprivate func valueOn(_ url: URL?, row: Int, cell: Int, forAttribute: String = "ss:Index") -> String? {
+    fileprivate func valueOn(_ url: URL?, sheet: Int = 1, row: Int, cell: Int, forAttribute: String = "ss:Index") -> String? {
         do {
             let xmlData = try Data(contentsOf: url!)
             let parser = XMLParser(data: xmlData)
             let parserDelegate = ParserDelegate()
+            parserDelegate.sheetNumberToCheck = sheet
             parserDelegate.rowNumberToCheck = row
             parserDelegate.cellNumberToCheck = cell
             
