@@ -144,6 +144,19 @@ class ExcelExportTests: XCTestCase {
         XCTAssertEqual(valueOn(url, row: 4, cell: 1), nil)
         XCTAssertEqual(valueOn(url, row: 5, cell: 1), "2")
     }
+    
+    func testMergeDownOnLastColumnResetOncePreviousBlockCompleted() {
+        let row1 = ExcelRow([ExcelCell("cell2 row1"),ExcelCell("cell1 row1 mergedown 2", [], rowspan: 2)])
+        let row2 = ExcelRow([ExcelCell("cell1 row2")])
+        let row3 = ExcelRow([ExcelCell("cell1 row3")])
+        let row4 = ExcelRow([ExcelCell("cell1 row4"),ExcelCell("cell1 row1 mergedown 2", [], rowspan: 2)])
+        let sheet1 = ExcelSheet([row1,row2,row3,row4], name: "Sheet1")
+        
+        let (exportResultCalled, url) = export([sheet1])
+        
+        XCTAssertTrue(exportResultCalled, "No file created.")
+        XCTAssertEqual(valueOn(url, row: 4, cell: 2), nil)
+    }
 
     func testExport() {
         // arrange

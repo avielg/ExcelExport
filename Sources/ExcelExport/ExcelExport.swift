@@ -229,6 +229,10 @@ public class ExcelExport {
                     }
                     vIndex += 1
                 }
+                while vIndex < remainingSpan.count {
+                    remainingSpan[vIndex].remainingRows -= 1
+                    vIndex += 1
+                }
                 
                 let rowOps = row.height.map{ "ss:Height=\"\($0)\"" } ?? ""
                 let lead = "<Row \(rowOps)>"
