@@ -195,9 +195,11 @@ public class ExcelExport {
                     let data = "<Data ss:Type=\"\(cell.type.rawValue)\">\(cell.value)</Data>"
                     
                     //style
-                    let styleId: String
+                    let styleId: String?
                     let styleValue = TextAttribute.styleValue(for: cell.attributes)
-                    if let id = styles.first(where: { k, v in v.contains(styleValue) })?.key {
+                    if styleValue.isEmpty {
+                        styleId = nil
+                    } else if let id = styles.first(where: { k, v in v.contains(styleValue) })?.key {
                         styleId = id //reuse existing style
                     } else {
                         styleId = appendStyle(styleValue) //create new style
@@ -205,14 +207,11 @@ public class ExcelExport {
                     
                     let mergeAcross = cell.colspan.map{ " ss:MergeAcross=\"\($0)\"" } ?? ""
                     let mergeDown = cell.rowspan.map{ " ss:MergeDown=\"\($0)\"" } ?? ""
-                    
-                    var indexAttribute = ""
-                    if vIndex != cellIndex {
-                        indexAttribute = " ss:Index=\"\(vIndex+1)\""
-                    }
+                    let style = styleId != nil ? " ss:StyleID=\"\(styleId!)\"" : ""
+                    let indexAttribute = vIndex != cellIndex ? " ss:Index=\"\(vIndex+1)\"": ""
                     
                     //combine
-                    let lead = "<Cell ss:StyleID=\"\(styleId)\"\(mergeAcross)\(mergeDown)\(indexAttribute)>"
+                    let lead = "<Cell\(style)\(mergeAcross)\(mergeDown)\(indexAttribute)>"
                     let trail = "</Cell>"
                     
                     cells.append([lead, data, trail].joined())

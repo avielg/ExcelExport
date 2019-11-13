@@ -146,15 +146,32 @@ class ExcelExportTests: XCTestCase {
     }
     
     func testMergeDownOnLastColumnResetOncePreviousBlockCompleted() {
-        let row1 = ExcelRow([ExcelCell("cell2 row1"),ExcelCell("cell1 row1 mergedown 2", [], rowspan: 2)])
+        let row1 = ExcelRow([ExcelCell("cell1 row1"),ExcelCell("cell2 row1 mergedown 2", [], rowspan: 2)])
         let row2 = ExcelRow([ExcelCell("cell1 row2")])
         let row3 = ExcelRow([ExcelCell("cell1 row3")])
-        let row4 = ExcelRow([ExcelCell("cell1 row4"),ExcelCell("cell1 row1 mergedown 2", [], rowspan: 2)])
+        let row4 = ExcelRow([ExcelCell("cell1 row4"),ExcelCell("cell2 row4 mergedown 2", [], rowspan: 2)])
         let sheet1 = ExcelSheet([row1,row2,row3,row4], name: "Sheet1")
         
         let (exportResultCalled, url) = export([sheet1])
         
         XCTAssertTrue(exportResultCalled, "No file created.")
+        XCTAssertEqual(valueOn(url, row: 4, cell: 2), nil)
+    }
+    
+    func testAdjacentMergeDownOfDifferentSize() {
+        let row1 = ExcelRow([ExcelCell("cell1 row1 mergedown 1", [], rowspan: 1),ExcelCell("cell2 row1 mergedown 2", [], rowspan: 2),ExcelCell("cell3 row1")])
+        let row2 = ExcelRow([ExcelCell("cell1 row2 (idx 3)"), ExcelCell("cell2 row2 (idx4)")])
+        let row3 = ExcelRow([ExcelCell("cell1 row3 (idx nil)"), ExcelCell("cell2 row3 (idx3)")])
+        let row4 = ExcelRow([ExcelCell("cell1 row4 (idx nil)"), ExcelCell("cell2 row4 (nil)")])
+        let sheet = ExcelSheet([row1,row2,row3,row4], name: "Sheet1")
+        
+        let (_, url) = export([sheet])
+        
+        XCTAssertEqual(valueOn(url, row: 2, cell: 1), "3")
+        XCTAssertEqual(valueOn(url, row: 2, cell: 2), "4")
+        XCTAssertEqual(valueOn(url, row: 3, cell: 1), nil)
+        XCTAssertEqual(valueOn(url, row: 3, cell: 2), "3")
+        XCTAssertEqual(valueOn(url, row: 4, cell: 1), nil)
         XCTAssertEqual(valueOn(url, row: 4, cell: 2), nil)
     }
 
