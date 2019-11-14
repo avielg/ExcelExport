@@ -273,17 +273,19 @@ class ExcelExportTests: XCTestCase {
             }
             expectation.fulfill()
         }
-        waitForExpectations(timeout: 1)
+        waitForExpectations(timeout: 10)
         
         return (exportResultCalled,contentUrl)
     }
     
     fileprivate func attachResult(content: URL, name: String)
     {
-        let attachment = XCTAttachment(contentsOfFile: content)
-        attachment.name = name
-        attachment.lifetime = .keepAlways
-        self.add(attachment)
+        if self.isAttachmentAvailable {
+            let attachment = XCTAttachment(contentsOfFile: content)
+            attachment.name = name
+            attachment.lifetime = .keepAlways
+            self.add(attachment)
+        }
     }
 }
 
@@ -291,7 +293,19 @@ class ExcelExportTests: XCTestCase {
 extension ExcelExportTests {
     static var allTests : [(String, (ExcelExportTests) -> () throws -> Void)] {
         return [
-            ("testExample", testExample),
+            ("testCellValue", testCellValue),
+            ("testCellAttribute", testCellAttribute),
+            ("testRow", testRow),
+            ("testSheet", testSheet),
+            ("testMergeDown1Row", testMergeDown1Row),
+            ("testMergeDown2Rows", testMergeDown2Rows),
+            ("testMergeDownOnThe2ndColumn", testMergeDownOnThe2ndColumn),
+            ("testMergeDownResetBetweenSheet", testMergeDownResetBetweenSheet),
+            ("testMergeDownIn2Columns", testMergeDownIn2Columns),
+            ("testMergeDownOnTwoSubsequentRowBlock", testMergeDownOnTwoSubsequentRowBlock),
+            ("testMergeDownOnLastColumnResetOncePreviousBlockCompleted", testMergeDownOnLastColumnResetOncePreviousBlockCompleted),
+            ("testAdjacentMergeDownOfDifferentSize", testAdjacentMergeDownOfDifferentSize),
+            ("testExport", testExport)
         ]
     }
 }
