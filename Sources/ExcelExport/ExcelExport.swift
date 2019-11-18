@@ -67,7 +67,7 @@ public enum TextAttribute {
             return "<NumberFormat ss:Format=\"\(s)\"/>"
             
         case .font(let styles):
-            return "<Font " + styles.map{$0.parsed}.joined(separator: " ") + "/>"
+            return "<Font " + styles.map({$0.parsed}).joined(separator: " ") + "/>"
         }
     }
     
@@ -147,6 +147,13 @@ public struct ExcelSheet {
 
 
 public class ExcelExport {
+    struct RemainingSpan {
+        var remainingRows: Int
+        var colSpan: Int
+        var description: String {
+            return "remainingRows: \(remainingRows), colSpan: \(colSpan)"
+        }
+    }
     
     public class func export(_ sheets: [ExcelSheet], fileName: String, done: @escaping (URL?)->Void) {
         DispatchQueue.global(qos: .background).async {
@@ -156,13 +163,6 @@ public class ExcelExport {
     }
     
     private class func performXMLExport(_ sheets: [ExcelSheet], fileName: String) -> URL? {
-        struct RemainingSpan {
-            var remainingRows: Int
-            var colSpan: Int
-            var description: String {
-                return "remainingRows: \(remainingRows), colSpan: \(colSpan)"
-            }
-        }
         let file = fileUrl(name: fileName)
         
         // all styles for this wokrbook
