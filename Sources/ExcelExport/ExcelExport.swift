@@ -114,7 +114,8 @@ public struct ExcelCell {
         rowspan = nil
     }
     
-    public init(_ value: String, _ attributes: [TextAttribute], _ type: DataType = .string, colspan: Int? = nil, rowspan: Int? = nil) {
+    public init(_ value: String, _ attributes: [TextAttribute], _ type: DataType = .string, 
+                colspan: Int? = nil, rowspan: Int? = nil) {
         self.value = value
         self.attributes = attributes
         self.colspan = colspan
@@ -156,16 +157,16 @@ public class ExcelExport {
     
     private class func performXMLExport(_ sheets: [ExcelSheet], fileName: String) -> URL? {
         struct RemainingSpan {
-            var remainingRows : Int
-            var colSpan : Int
-            var description : String {
+            var remainingRows: Int
+            var colSpan: Int
+            var description: String {
                 return "remainingRows: \(remainingRows), colSpan: \(colSpan)"
             }
         }
         let file = fileUrl(name: fileName)
         
         // all styles for this wokrbook
-        var styles = [String : String]() // id : value
+        var styles = [String: String]() // id : value
         
         // adds new style, returns it's ID
         let appendStyle: (String)->String = {
@@ -221,7 +222,8 @@ public class ExcelExport {
                         while remainingSpan.count <= vIndex {
                             remainingSpan.append(RemainingSpan(remainingRows: 0, colSpan: 0))
                         }
-                        remainingSpan[vIndex] = RemainingSpan(remainingRows: newMergeDownCount, colSpan: cell.colspan ?? 0)
+                        remainingSpan[vIndex] = RemainingSpan(remainingRows: newMergeDownCount, 
+                                                              colSpan: cell.colspan ?? 0)
                     }
                     vIndex += 1
                 }
@@ -284,7 +286,7 @@ private extension Color {
         var a: CGFloat = 0
         self.getRed(&r, green: &g, blue: &b, alpha: &a)
         
-        if (includeAlpha) {
+        if includeAlpha {
             return String(format: "#%02X%02X%02X%02X", Int(r * 255), Int(g * 255), Int(b * 255), Int(a * 255))
         } else {
             return String(format: "#%02X%02X%02X", Int(r * 255), Int(g * 255), Int(b * 255))
