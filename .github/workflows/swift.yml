@@ -1,4 +1,4 @@
-name: Swift
+name: Build
 
 on: [push]
 
@@ -13,9 +13,3 @@ jobs:
       run: swift build -v
     - name: Run tests
       run: swift test -v
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v1
-    - name: SwiftLint
-      uses: norio-nomura/action-swiftlint@3.0.1
