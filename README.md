@@ -1,3 +1,6 @@
+![](https://github.com/huguesf/ExcelExport/workflows/Build/badge.svg)
+![](https://github.com/huguesf/ExcelExport/workflows/Lint/badge.svg)
+
 # ExcelExport
 
 Create Excel spreadsheets from scratch. Built with Swift 3, updated to Swift 5.

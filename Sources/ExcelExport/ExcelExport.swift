@@ -67,7 +67,7 @@ public enum TextAttribute {
             return "<NumberFormat ss:Format=\"\(s)\"/>"
             
         case .font(let styles):
-            return "<Font " + styles.map{$0.parsed}.joined(separator: " ") + "/>"
+            return "<Font " + styles.map({$0.parsed}).joined(separator: " ") + "/>"
         }
     }
     
@@ -101,6 +101,7 @@ public struct ExcelCell {
     public let value: String
     public let attributes: [TextAttribute]
     public let colspan: Int?
+    public let rowspan: Int?
     
     public enum DataType: String { case string="String", dateTime="DateTime" }
     let type: DataType
@@ -110,13 +111,16 @@ public struct ExcelCell {
         attributes = []
         colspan = nil
         type = .string
+        rowspan = nil
     }
     
-    public init(_ value: String, _ attributes: [TextAttribute], _ type: DataType = .string, colspan: Int? = nil) {
+    public init(_ value: String, _ attributes: [TextAttribute], _ type: DataType = .string, 
+                colspan: Int? = nil, rowspan: Int? = nil) {
         self.value = value
         self.attributes = attributes
         self.colspan = colspan
         self.type = type
+        self.rowspan = rowspan
     }
 }
 
@@ -143,6 +147,13 @@ public struct ExcelSheet {
 
 
 public class ExcelExport {
+    struct RemainingSpan {
+        var remainingRows: Int
+        var colSpan: Int
+        var description: String {
+            return "remainingRows: \(remainingRows), colSpan: \(colSpan)"
+        }
+    }
     
     public class func export(_ sheets: [ExcelSheet], fileName: String, done: @escaping (URL?)->Void) {
         DispatchQueue.global(qos: .background).async {
@@ -155,7 +166,7 @@ public class ExcelExport {
         let file = fileUrl(name: fileName)
         
         // all styles for this wokrbook
-        var styles = [String : String]() // id : value
+        var styles = [String: String]() // id : value
         
         // adds new style, returns it's ID
         let appendStyle: (String)->String = {
@@ -165,36 +176,61 @@ public class ExcelExport {
         }
         
         var sheetsValues = [String]()
+        var remainingSpan = [RemainingSpan]()
         for sheet in sheets {
             
             // build sheet
+            var vIndex = 0
             var rows = [String]()
             for row in sheet.rows {
-
+                
                 var cells = [String]()
-                for cell in row.cells {
+                vIndex = 0
+                for (cellIndex, cell) in row.cells.enumerated() {
+                    while vIndex < remainingSpan.count && remainingSpan[vIndex].remainingRows > 0 {
+                        remainingSpan[vIndex].remainingRows -= 1
+                        vIndex += (remainingSpan[vIndex].colSpan + 1)
+                    }
                     
                     //data
                     let data = "<Data ss:Type=\"\(cell.type.rawValue)\">\(cell.value)</Data>"
                     
                     //style
-                    let styleId: String
+                    let styleId: String?
                     let styleValue = TextAttribute.styleValue(for: cell.attributes)
-                    if let id = styles.first(where: { k, v in v.contains(styleValue) })?.key {
+                    if styleValue.isEmpty {
+                        styleId = nil
+                    } else if let id = styles.first(where: { k, v in v.contains(styleValue) })?.key {
                         styleId = id //reuse existing style
                     } else {
                         styleId = appendStyle(styleValue) //create new style
                     }
                     
-                    let merge = cell.colspan.map{ "ss:MergeAcross=\"\($0)\"" } ?? ""
+                    let mergeAcross = cell.colspan.map{ " ss:MergeAcross=\"\($0)\"" } ?? ""
+                    let mergeDown = cell.rowspan.map{ " ss:MergeDown=\"\($0)\"" } ?? ""
+                    let style = styleId != nil ? " ss:StyleID=\"\(styleId!)\"" : ""
+                    let indexAttribute = vIndex != cellIndex ? " ss:Index=\"\(vIndex+1)\"": ""
                     
                     //combine
-                    let lead = "<Cell ss:StyleID=\"\(styleId)\" \(merge)>"
+                    let lead = "<Cell\(style)\(mergeAcross)\(mergeDown)\(indexAttribute)>"
                     let trail = "</Cell>"
                     
                     cells.append([lead, data, trail].joined())
+                    
+                    // Setup mergeDown cells
+                    if let newMergeDownCount = cell.rowspan {
+                        while remainingSpan.count <= vIndex {
+                            remainingSpan.append(RemainingSpan(remainingRows: 0, colSpan: 0))
+                        }
+                        remainingSpan[vIndex] = RemainingSpan(remainingRows: newMergeDownCount, 
+                                                              colSpan: cell.colspan ?? 0)
+                    }
+                    vIndex += 1
                 }
-                
+                while vIndex < remainingSpan.count {
+                    remainingSpan[vIndex].remainingRows -= 1
+                    vIndex += 1
+                }
                 
                 let rowOps = row.height.map{ "ss:Height=\"\($0)\"" } ?? ""
                 let lead = "<Row \(rowOps)>"
@@ -206,8 +242,9 @@ public class ExcelExport {
             let lead = "<Worksheet ss:Name=\"\(sheet.name)\"><Table>"
             let trail = "</Table></Worksheet>"
             sheetsValues.append([lead, rows.joined(), trail].joined())
+            
+            remainingSpan = [RemainingSpan]()
         }
-        
         
         let workbookLead = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><?mso-application progid=\"Excel.Sheet\"?><Workbook xmlns=\"urn:schemas-microsoft-com:office:spreadsheet\" xmlns:x=\"urn:schemas-microsoft-com:office:excel\" xmlns:ss=\"urn:schemas-microsoft-com:office:spreadsheet\" xmlns:html=\"http://www.w3.org/TR/REC-html40\">"
         let workbookTrail = "</Workbook>"
@@ -249,7 +286,7 @@ private extension Color {
         var a: CGFloat = 0
         self.getRed(&r, green: &g, blue: &b, alpha: &a)
         
-        if (includeAlpha) {
+        if includeAlpha {
             return String(format: "#%02X%02X%02X%02X", Int(r * 255), Int(g * 255), Int(b * 255), Int(a * 255))
         } else {
             return String(format: "#%02X%02X%02X", Int(r * 255), Int(g * 255), Int(b * 255))
