@@ -99,9 +99,10 @@ public struct ExcelCell {
     public let rowspan: Int?
 
     /**
-     This date formatter is used to format the date in the Data element for a DateTime cell. It match what Excel is expecting.
+     This date formatter is used to format the date in the Data element for a DateTime cell.
+     It match what Excel is expecting.
      */
-    public static let dateFormatter : DateFormatter = {
+    public static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
@@ -111,7 +112,8 @@ public struct ExcelCell {
     public enum DataType: String { case string="String", dateTime="DateTime", number="Number" }
     let type: DataType
     
-    public init(_ value: String, _ attributes: [TextAttribute], _ type: DataType = .string, colspan: Int? = nil, rowspan: Int? = nil) {
+    public init(_ value: String, _ attributes: [TextAttribute], _ type: DataType = .string, colspan: Int? = nil,
+                rowspan: Int? = nil) {
         self.value = value
         self.attributes = attributes
         self.colspan = colspan
@@ -126,8 +128,10 @@ public struct ExcelCell {
     /**
      - Warnings: there is a default format (in attributes) as General Date. If you want to specify other attributes, add the desired date format too.
      */
-    public init(_ value: Date, _ attributes: [TextAttribute] = [.format("General Date")], colspan: Int? = nil, rowspan: Int? = nil) {
-        self.init( ExcelCell.dateFormatter.string(from: value), attributes, .dateTime, colspan: colspan, rowspan: rowspan)
+    public init(_ value: Date, _ attributes: [TextAttribute] = [.format("General Date")], colspan: Int? = nil,
+                rowspan: Int? = nil) {
+        self.init( ExcelCell.dateFormatter.string(from: value), attributes, .dateTime, colspan: colspan,
+                   rowspan: rowspan)
     }
     
     public init(_ value: String, _ attributes: [TextAttribute] = [], colspan: Int? = nil, rowspan: Int? = nil) {
