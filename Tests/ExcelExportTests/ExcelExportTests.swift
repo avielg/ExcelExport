@@ -174,6 +174,33 @@ class ExcelExportTests: XCTestCase {
         XCTAssertEqual(valueOn(url, row: 4, cell: 1), nil)
         XCTAssertEqual(valueOn(url, row: 4, cell: 2), nil)
     }
+    
+    func testNumericValue() {
+        let row1 = ExcelRow([ExcelCell(1.33)])
+        let sheet = ExcelSheet([row1], name: "Sheet1")
+        
+        let (_, url) = export([sheet])
+        
+        XCTAssertEqual(valueOn(url, row: 1, cell: 1, data: true, for: .attribute("ss:Type")), "Number")
+        XCTAssertTrue(valueOn(url, row: 1, cell: 1, for: .value)!.hasPrefix("1.33"))
+    }
+    
+    func testDateTimeValue() {
+        let date = Date()
+        let row1 = ExcelRow([ExcelCell(date), ExcelCell(date, [.format("HH:mm")])])
+        let row2 = ExcelRow([ExcelCell(date), ExcelCell(date, [.format("HH:mm")])])
+        let row3 = ExcelRow([ExcelCell(date), ExcelCell(date, [.format("HH:mm")])])
+        let row4 = ExcelRow([ExcelCell(date), ExcelCell(date, [.format("HH:mm")])])
+        let row5 = ExcelRow([ExcelCell(date), ExcelCell(date, [.format("HH:mm")])])
+        let sheet = ExcelSheet([row1, row2, row3, row4, row5], name: "Sheet1")
+        
+        let (_, url) = export([sheet])
+        
+        XCTAssertEqual(valueOn(url, row: 1, cell: 1, data: true, for: .attribute("ss:Type")), "DateTime")
+        XCTAssertEqual(valueOn(url, row: 1, cell: 2, data: true, for: .attribute("ss:Type")), "DateTime")
+        XCTAssertEqual(valueOn(url, row: 1, cell: 1, data: true, for: .value), ExcelCell.dateFormatter.string(from: date))
+        XCTAssertEqual(valueOn(url, row: 1, cell: 2, data: true, for: .value), ExcelCell.dateFormatter.string(from: date))
+    }
 
     func testExport() {
         // arrange
@@ -192,13 +219,28 @@ class ExcelExportTests: XCTestCase {
         var sheetNumberToCheck = 0
         var rowNumberToCheck = 0
         var cellNumberToCheck = 0
-        var attributeName = "ss:Index"
+        var data : Bool
+        var lookingFor : ValueOf
+        
         private var currentSheet = 0
         private var currentRow = 0
         private var currentCell = 0
-        var valueFound : String? = nil
         
-        func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String]) {
+        var valueFound : String? = nil
+        var findInnerValue = false
+        var innerValue = ""
+        
+        init(_ sheet : Int = 0, _ row : Int = 0, _ cell : Int = 0, _ data : Bool, _ lookingFor : ValueOf) {
+            self.sheetNumberToCheck = sheet
+            self.rowNumberToCheck = row
+            self.cellNumberToCheck = cell
+            self.lookingFor = lookingFor
+            self.data = data
+        }
+        
+        func parser(_ parser: XMLParser, didStartElement elementName: String,
+                    namespaceURI: String?, qualifiedName qName: String?,
+                    attributes attributeDict: [String : String]) {
             switch elementName {
                 case "Worksheet":
                     currentSheet+=1
@@ -209,19 +251,45 @@ class ExcelExportTests: XCTestCase {
                     currentCell=0
                 case "Cell":
                     currentCell+=1
-                    if currentSheet == sheetNumberToCheck && currentRow == rowNumberToCheck && currentCell == cellNumberToCheck {
-                        valueFound = attributeDict[attributeName]
+                    if currentSheet == sheetNumberToCheck && currentRow == rowNumberToCheck && currentCell == cellNumberToCheck && !data {
+                        processElement(elementName, attributeDict)
                     }
+                case "Data":
+                    if currentSheet == sheetNumberToCheck && currentRow == rowNumberToCheck && currentCell == cellNumberToCheck && data {
+                        processElement(elementName, attributeDict)
+                    }
+
                 default: break
             }
         }
         
-        func parser(_ parser: XMLParser, foundCharacters string: String) {
-            
+        func processElement(_ elementName : String, _ attributeDict : [String : String]) {
+            switch lookingFor {
+                case .attribute(let attributeName):
+                    valueFound = attributeDict[attributeName]
+                
+                case .value:
+                    findInnerValue = true
+                    innerValue = ""
+            }
         }
         
-        func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
-            
+        func parser(_ parser: XMLParser, didEndElement elementName: String,
+                    namespaceURI: String?, qualifiedName qName: String?) {
+            if findInnerValue && elementName == "Cell" {
+                valueFound = innerValue
+            }
+        }
+        
+        func parser(_ parser: XMLParser, foundCharacters string: String) {
+            if findInnerValue && currentSheet == sheetNumberToCheck && currentRow == rowNumberToCheck && currentCell == cellNumberToCheck {
+                print("... adding characters found")
+                innerValue += string
+            }
+        }
+        
+        func parser(_ parser: XMLParser, foundCDATA: Data) {
+
         }
         
         func parserDidEndDocument(_ parser: XMLParser) {
@@ -229,14 +297,18 @@ class ExcelExportTests: XCTestCase {
         }
     }
 
-    fileprivate func valueOn(_ url: URL?, sheet: Int = 1, row: Int, cell: Int, forAttribute: String = "ss:Index") -> String? {
+    enum ValueOf
+    {
+        case attribute(String)
+        case value
+    }
+    
+    fileprivate func valueOn(_ url: URL?, sheet: Int = 1, row: Int, cell: Int, data: Bool = false,
+                             for lookingFor : ValueOf = .attribute("ss:Index")) -> String? {
         do {
             let xmlData = try Data(contentsOf: url!)
             let parser = XMLParser(data: xmlData)
-            let parserDelegate = ParserDelegate()
-            parserDelegate.sheetNumberToCheck = sheet
-            parserDelegate.rowNumberToCheck = row
-            parserDelegate.cellNumberToCheck = cell
+            let parserDelegate = ParserDelegate(sheet, row, cell, data, lookingFor)
             
             parser.delegate = parserDelegate
             
