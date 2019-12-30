@@ -80,10 +80,6 @@ public enum TextAttribute {
         }
     }
     
-//    static func compare(_ attributes: [TextAttribute], with: [TextAttribute]) -> Bool {
-//        
-//    }
-    
     static func styleValue(for textAttributes: [TextAttribute]) -> String {
         guard textAttributes.count > 0 else { return "" }
         
@@ -96,34 +92,48 @@ extension TextAttribute {
     static let dateTimeTypeDateFormat = "1899-12-31T15:31:00.000"
 }
 
-
 public struct ExcelCell {
     public let value: String
     public let attributes: [TextAttribute]
     public let colspan: Int?
     public let rowspan: Int?
+
+    /**
+     This date formatter is used to format the date in the Data element for a DateTime cell. It match what Excel is expecting.
+     */
+    public static let dateFormatter : DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
+        return formatter
+    }()
     
-    public enum DataType: String { case string="String", dateTime="DateTime" }
+    public enum DataType: String { case string="String", dateTime="DateTime", number="Number" }
     let type: DataType
     
-    public init(_ value: String) {
-        self.value = value
-        attributes = []
-        colspan = nil
-        type = .string
-        rowspan = nil
-    }
-    
-    public init(_ value: String, _ attributes: [TextAttribute], _ type: DataType = .string, 
-                colspan: Int? = nil, rowspan: Int? = nil) {
+    public init(_ value: String, _ attributes: [TextAttribute], _ type: DataType = .string, colspan: Int? = nil, rowspan: Int? = nil) {
         self.value = value
         self.attributes = attributes
         self.colspan = colspan
         self.type = type
         self.rowspan = rowspan
     }
+    
+    public init(_ value: Double, _ attributes: [TextAttribute] = [], colspan: Int? = nil, rowspan: Int? = nil) {
+        self.init(String(format: "%f", arguments: [value]), attributes, .number, colspan: colspan, rowspan: rowspan)
+    }
+    
+    /**
+     - Warnings: there is a default format (in attributes) as General Date. If you want to specify other attributes, add the desired date format too.
+     */
+    public init(_ value: Date, _ attributes: [TextAttribute] = [.format("General Date")], colspan: Int? = nil, rowspan: Int? = nil) {
+        self.init( ExcelCell.dateFormatter.string(from: value), attributes, .dateTime, colspan: colspan, rowspan: rowspan)
+    }
+    
+    public init(_ value: String, _ attributes: [TextAttribute] = [], colspan: Int? = nil, rowspan: Int? = nil) {
+        self.init( value, attributes, .string, colspan: colspan, rowspan: rowspan)
+    }
 }
-
 
 public struct ExcelRow {
     public let cells: [ExcelCell]
@@ -178,12 +188,10 @@ public class ExcelExport {
         var sheetsValues = [String]()
         var remainingSpan = [RemainingSpan]()
         for sheet in sheets {
-            
             // build sheet
             var vIndex = 0
             var rows = [String]()
             for row in sheet.rows {
-                
                 var cells = [String]()
                 vIndex = 0
                 for (cellIndex, cell) in row.cells.enumerated() {
@@ -269,9 +277,7 @@ public class ExcelExport {
         let docsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         return docsDir.appendingPathComponent("\(name).xls")
     }
-    
 }
-
 
 private extension Color {
     
@@ -292,6 +298,4 @@ private extension Color {
             return String(format: "#%02X%02X%02X", Int(r * 255), Int(g * 255), Int(b * 255))
         }
     }
-    
 }
-
