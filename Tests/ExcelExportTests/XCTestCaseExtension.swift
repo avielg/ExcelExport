@@ -9,7 +9,7 @@ import Foundation
 import XCTest
 
 extension XCTestCase {
-    var isAttachmentAvailable : Bool {
+    var isAttachmentAvailable: Bool {
         return ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 }
