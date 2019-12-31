@@ -37,16 +37,16 @@ public enum TextAttribute {
 
         var parsed: String {
             switch self {
-            case .bold: return "ss:Bold=\"1\""
-            case .color(let color): return "ss:Color=\"\(color.hexString())\""
+                case .bold: return "ss:Bold=\"1\""
+                case .color(let color): return "ss:Color=\"\(color.hexString())\""
             }
         }
 
         public static func == (lhs: FontStyle, rhs: FontStyle) -> Bool {
             switch (lhs, rhs) {
-            case (.bold, .bold): return true
-            case (.color(let lColor), .color(let rColor)): return lColor == rColor
-            default: return false
+                case (.bold, .bold): return true
+                case (.color(let lColor), .color(let rColor)): return lColor == rColor
+                default: return false
             }
         }
     }
@@ -57,23 +57,23 @@ public enum TextAttribute {
 
     var parsed: String {
         switch self {
-        case .backgroundColor(let color):
-            return "<Interior ss:Color=\"\(color.hexString())\" ss:Pattern=\"Solid\"/>"
+            case .backgroundColor(let color):
+                return "<Interior ss:Color=\"\(color.hexString())\" ss:Pattern=\"Solid\"/>"
 
-        case .format(let format):
-            return "<NumberFormat ss:Format=\"\(format)\"/>"
+            case .format(let format):
+                return "<NumberFormat ss:Format=\"\(format)\"/>"
 
-        case .font(let styles):
-            return "<Font " + styles.map({$0.parsed}).joined(separator: " ") + "/>"
+            case .font(let styles):
+                return "<Font " + styles.map({$0.parsed}).joined(separator: " ") + "/>"
         }
     }
 
     public static func a(lhs: TextAttribute, rhs: TextAttribute) -> Bool {
         switch (lhs, rhs) {
-        case (.backgroundColor(let lColor), .backgroundColor(let rColor)): return lColor == rColor
-        case (.font(let lFont), .font(let rFont)): return lFont == rFont
-        case (.format(let lFormat), .format(let rFormat)): return lFormat == rFormat
-        default: return false
+            case (.backgroundColor(let lColor), .backgroundColor(let rColor)): return lColor == rColor
+            case (.font(let lFont), .font(let rFont)): return lFont == rFont
+            case (.format(let lFormat), .format(let rFormat)): return lFormat == rFormat
+            default: return false
         }
     }
 
