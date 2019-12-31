@@ -35,7 +35,8 @@ class ExcelExportTests: XCTestCase {
     }
 
     func testCellAttribute() {
-        let cell = ExcelCell("", [TextAttribute.font([TextAttribute.FontStyle.bold, TextAttribute.FontStyle.color(Color.blue)])])
+        let cell = ExcelCell("", [TextAttribute.font([TextAttribute.FontStyle.bold,
+                                                      TextAttribute.FontStyle.color(Color.blue)])])
         XCTAssertEqual(TextAttribute.styleValue(for: cell.attributes), "<Font ss:Bold=\"1\" ss:Color=\"#0000FF\"/>")
     }
 
@@ -86,7 +87,9 @@ class ExcelExportTests: XCTestCase {
 
     func testMergeDownOnThe2ndColumn() {
         // arrange
-        let row1 = ExcelRow([ExcelCell("cell1 row1"), ExcelCell("cell2 row1 mergedown 1", [], rowspan: 1), ExcelCell("cell3 row1")])
+        let row1 = ExcelRow([ExcelCell("cell1 row1"),
+                             ExcelCell("cell2 row1 mergedown 1", [], rowspan: 1),
+                             ExcelCell("cell3 row1")])
         let row2 = ExcelRow([ExcelCell("cell1 row2"), ExcelCell("cell3 row2"), ExcelCell("cell4 row2")])
         let sheet = ExcelSheet([row1, row2], name: "Sheet1")
 
@@ -100,7 +103,10 @@ class ExcelExportTests: XCTestCase {
     }
 
     func testMergeDownResetBetweenSheet() {
-        let row1 = ExcelRow([ExcelCell("cell1 row1 mergedown 2", [], rowspan: 2), ExcelCell("cell2 row1"), ExcelCell("cell3 row1 mergedown 2", [], rowspan: 2), ExcelCell("cell4 row1")])
+        let row1 = ExcelRow([ExcelCell("cell1 row1 mergedown 2", [], rowspan: 2),
+                             ExcelCell("cell2 row1"),
+                             ExcelCell("cell3 row1 mergedown 2", [], rowspan: 2),
+                             ExcelCell("cell4 row1")])
         let row2 = ExcelRow([ExcelCell("cell1 row2"), ExcelCell("cell2 row2")])
         let sheet1 = ExcelSheet([row1, row2], name: "Sheet1")
         let row3 = ExcelRow([ExcelCell("cell1 row3"), ExcelCell("cell2 row3")])
@@ -115,7 +121,10 @@ class ExcelExportTests: XCTestCase {
     }
 
     func testMergeDownIn2Columns() {
-        let row1 = ExcelRow([ExcelCell("cell1 row1 mergedown 2", [], rowspan: 2), ExcelCell("cell2 row1"), ExcelCell("cell3 row1 mergedown 2", [], rowspan: 2), ExcelCell("cell4 row1")])
+        let row1 = ExcelRow([ExcelCell("cell1 row1 mergedown 2", [], rowspan: 2),
+                             ExcelCell("cell2 row1"),
+                             ExcelCell("cell3 row1 mergedown 2", [], rowspan: 2),
+                             ExcelCell("cell4 row1")])
         let row2 = ExcelRow([ExcelCell("cell1 row2"), ExcelCell("cell2 row2")])
         let row3 = ExcelRow([ExcelCell("cell1 row3"), ExcelCell("cell2 row3")])
         let sheet = ExcelSheet([row1, row2, row3], name: "Sheet1")
@@ -159,7 +168,9 @@ class ExcelExportTests: XCTestCase {
     }
 
     func testAdjacentMergeDownOfDifferentSize() {
-        let row1 = ExcelRow([ExcelCell("cell1 row1 mergedown 1", [], rowspan: 1), ExcelCell("cell2 row1 mergedown 2", [], rowspan: 2), ExcelCell("cell3 row1")])
+        let row1 = ExcelRow([ExcelCell("cell1 row1 mergedown 1", [], rowspan: 1),
+                             ExcelCell("cell2 row1 mergedown 2", [], rowspan: 2),
+                             ExcelCell("cell3 row1")])
         let row2 = ExcelRow([ExcelCell("cell1 row2 (idx 3)"), ExcelCell("cell2 row2 (idx4)")])
         let row3 = ExcelRow([ExcelCell("cell1 row3 (idx nil)"), ExcelCell("cell2 row3 (idx3)")])
         let row4 = ExcelRow([ExcelCell("cell1 row4 (idx nil)"), ExcelCell("cell2 row4 (nil)")])
@@ -198,13 +209,16 @@ class ExcelExportTests: XCTestCase {
 
         XCTAssertEqual(valueOn(url, row: 1, cell: 1, data: true, for: .attribute("ss:Type")), "DateTime")
         XCTAssertEqual(valueOn(url, row: 1, cell: 2, data: true, for: .attribute("ss:Type")), "DateTime")
-        XCTAssertEqual(valueOn(url, row: 1, cell: 1, data: true, for: .value), ExcelCell.dateFormatter.string(from: date))
-        XCTAssertEqual(valueOn(url, row: 1, cell: 2, data: true, for: .value), ExcelCell.dateFormatter.string(from: date))
+        XCTAssertEqual(valueOn(url, row: 1, cell: 1, data: true, for: .value),
+                       ExcelCell.dateFormatter.string(from: date))
+        XCTAssertEqual(valueOn(url, row: 1, cell: 2, data: true, for: .value),
+                       ExcelCell.dateFormatter.string(from: date))
     }
 
     func testExport() {
         // arrange
-        let cells = [ExcelCell("Age : "), ExcelCell("50", [TextAttribute.backgroundColor(Color.yellow), TextAttribute.font([TextAttribute.FontStyle.bold])])]
+        let cells = [ExcelCell("Age : "), ExcelCell("50", [TextAttribute.backgroundColor(Color.yellow),
+                                                           TextAttribute.font([TextAttribute.FontStyle.bold])])]
         let sheet = ExcelSheet([ExcelRow(cells), ExcelRow(cells), ExcelRow(cells)], name: "Test")
         let sheet2 = ExcelSheet([ExcelRow(cells)], name: "Test2")
 
@@ -213,93 +227,6 @@ class ExcelExportTests: XCTestCase {
 
         // assert
         XCTAssertTrue(exportResultCalled, "The file has not been created.")
-    }
-
-    class ParserDelegate: NSObject, XMLParserDelegate {
-        var sheetNumberToCheck = 0
-        var rowNumberToCheck = 0
-        var cellNumberToCheck = 0
-        var data: Bool
-        var lookingFor: ValueOf
-
-        private var currentSheet = 0
-        private var currentRow = 0
-        private var currentCell = 0
-
-        var valueFound: String?
-        var findInnerValue = false
-        var innerValue = ""
-
-        init(_ sheet: Int = 0, _ row: Int = 0, _ cell: Int = 0, _ data: Bool, _ lookingFor: ValueOf) {
-            self.sheetNumberToCheck = sheet
-            self.rowNumberToCheck = row
-            self.cellNumberToCheck = cell
-            self.lookingFor = lookingFor
-            self.data = data
-        }
-
-        func parser(_ parser: XMLParser, didStartElement elementName: String,
-                    namespaceURI: String?, qualifiedName qName: String?,
-                    attributes attributeDict: [String: String]) {
-            switch elementName {
-                case "Worksheet":
-                    currentSheet+=1
-                    currentRow = 0
-                    currentCell = 0
-                case "Row":
-                    currentRow+=1
-                    currentCell=0
-                case "Cell":
-                    currentCell+=1
-                    if currentSheet == sheetNumberToCheck && currentRow == rowNumberToCheck && currentCell == cellNumberToCheck && !data {
-                        processElement(elementName, attributeDict)
-                    }
-                case "Data":
-                    if currentSheet == sheetNumberToCheck && currentRow == rowNumberToCheck && currentCell == cellNumberToCheck && data {
-                        processElement(elementName, attributeDict)
-                    }
-
-                default: break
-            }
-        }
-
-        func processElement(_ elementName: String, _ attributeDict: [String: String]) {
-            switch lookingFor {
-                case .attribute(let attributeName):
-                    valueFound = attributeDict[attributeName]
-
-                case .value:
-                    findInnerValue = true
-                    innerValue = ""
-            }
-        }
-
-        func parser(_ parser: XMLParser, didEndElement elementName: String,
-                    namespaceURI: String?, qualifiedName qName: String?) {
-            if findInnerValue && elementName == "Cell" {
-                valueFound = innerValue
-            }
-        }
-
-        func parser(_ parser: XMLParser, foundCharacters string: String) {
-            if findInnerValue && currentSheet == sheetNumberToCheck && currentRow == rowNumberToCheck && currentCell == cellNumberToCheck {
-                print("... adding characters found")
-                innerValue += string
-            }
-        }
-
-        func parser(_ parser: XMLParser, foundCDATA: Data) {
-
-        }
-
-        func parserDidEndDocument(_ parser: XMLParser) {
-
-        }
-    }
-
-    enum ValueOf {
-        case attribute(String)
-        case value
     }
 
     fileprivate func valueOn(_ url: URL?, sheet: Int = 1, row: Int, cell: Int, data: Bool = false,
@@ -356,6 +283,96 @@ class ExcelExportTests: XCTestCase {
     }
 }
 
+enum ValueOf {
+    case attribute(String)
+    case value
+}
+
+class ParserDelegate: NSObject, XMLParserDelegate {
+    var sheetNumberToCheck = 0
+    var rowNumberToCheck = 0
+    var cellNumberToCheck = 0
+    var data: Bool
+    var lookingFor: ValueOf
+
+    private var currentSheet = 0
+    private var currentRow = 0
+    private var currentCell = 0
+
+    var valueFound: String?
+    var findInnerValue = false
+    var innerValue = ""
+
+    init(_ sheet: Int = 0, _ row: Int = 0, _ cell: Int = 0, _ data: Bool, _ lookingFor: ValueOf) {
+        self.sheetNumberToCheck = sheet
+        self.rowNumberToCheck = row
+        self.cellNumberToCheck = cell
+        self.lookingFor = lookingFor
+        self.data = data
+    }
+
+    func parser(_ parser: XMLParser, didStartElement elementName: String,
+                namespaceURI: String?, qualifiedName qName: String?,
+                attributes attributeDict: [String: String]) {
+        switch elementName {
+            case "Worksheet":
+                currentSheet+=1
+                currentRow = 0
+                currentCell = 0
+            case "Row":
+                currentRow+=1
+                currentCell=0
+            case "Cell":
+                currentCell+=1
+                if currentSheet == sheetNumberToCheck && currentRow == rowNumberToCheck
+                    && currentCell == cellNumberToCheck && !data {
+                    processElement(elementName, attributeDict)
+            }
+            case "Data":
+                if currentSheet == sheetNumberToCheck && currentRow == rowNumberToCheck
+                    && currentCell == cellNumberToCheck && data {
+                    processElement(elementName, attributeDict)
+            }
+
+            default: break
+        }
+    }
+
+    func processElement(_ elementName: String, _ attributeDict: [String: String]) {
+        switch lookingFor {
+            case .attribute(let attributeName):
+                valueFound = attributeDict[attributeName]
+
+            case .value:
+                findInnerValue = true
+                innerValue = ""
+        }
+    }
+
+    func parser(_ parser: XMLParser, didEndElement elementName: String,
+                namespaceURI: String?, qualifiedName qName: String?) {
+        if findInnerValue && elementName == "Cell" {
+            valueFound = innerValue
+        }
+    }
+
+    func parser(_ parser: XMLParser, foundCharacters string: String) {
+        if findInnerValue && currentSheet == sheetNumberToCheck && currentRow == rowNumberToCheck
+            && currentCell == cellNumberToCheck {
+            print("... adding characters found")
+            innerValue += string
+        }
+    }
+
+    func parser(_ parser: XMLParser, foundCDATA: Data) {
+
+    }
+
+    func parserDidEndDocument(_ parser: XMLParser) {
+
+    }
+}
+
 #if os(Linux)
 extension ExcelExportTests {
     static var allTests: [(String, (ExcelExportTests) -> () throws -> Void)] {
@@ -370,7 +387,8 @@ extension ExcelExportTests {
             ("testMergeDownResetBetweenSheet", testMergeDownResetBetweenSheet),
             ("testMergeDownIn2Columns", testMergeDownIn2Columns),
             ("testMergeDownOnTwoSubsequentRowBlock", testMergeDownOnTwoSubsequentRowBlock),
-            ("testMergeDownOnLastColumnResetOncePreviousBlockCompleted", testMergeDownOnLastColumnResetOncePreviousBlockCompleted),
+            ("testMergeDownOnLastColumnResetOncePreviousBlockCompleted",
+             testMergeDownOnLastColumnResetOncePreviousBlockCompleted),
             ("testAdjacentMergeDownOfDifferentSize", testAdjacentMergeDownOfDifferentSize),
             ("testExport", testExport)
         ]

@@ -135,6 +135,20 @@ public struct ExcelCell {
     public init(_ value: String, _ attributes: [TextAttribute] = [], colspan: Int? = nil, rowspan: Int? = nil) {
         self.init( value, attributes, .string, colspan: colspan, rowspan: rowspan)
     }
+
+    public var dataElement: String {
+        return "<Data ss:Type=\"\(self.type.rawValue)\">\(self.value)</Data>"
+    }
+
+    public func cellElement(withStyleId styleId: String?, withIndexAttribute indexAttribute: String) -> String {
+        let mergeAcross = self.colspan.map { " ss:MergeAcross=\"\($0)\"" } ?? ""
+        let mergeDown = self.rowspan.map { " ss:MergeDown=\"\($0)\"" } ?? ""
+        let style = styleId != nil ? " ss:StyleID=\"\(styleId!)\"" : ""
+        let lead = "<Cell\(style)\(mergeAcross)\(mergeDown)\(indexAttribute)>"
+        let trail = "</Cell>"
+
+        return [lead, self.dataElement, trail].joined()
+    }
 }
 
 public struct ExcelRow {
@@ -145,6 +159,14 @@ public struct ExcelRow {
         self.cells = cells
         self.height = height
     }
+
+    public var lead: String {
+        let rowOps = self.height.map { "ss:Height=\"\($0)\"" } ?? ""
+        let lead = "<Row \(rowOps)>"
+        return lead
+    }
+
+    public let trail: String = "</Row>"
 }
 
 public struct ExcelSheet {
@@ -155,113 +177,74 @@ public struct ExcelSheet {
         self.rows = rows
         self.name = name
     }
+
+    public var lead: String {
+        return "<Worksheet ss:Name=\"\(self.name)\"><Table>"
+    }
+
+    public let trail = "</Table></Worksheet>"
 }
 
 public class ExcelExport {
-    struct RemainingSpan {
-        var remainingRows: Int
-        var colSpan: Int
-        var description: String {
-            return "remainingRows: \(remainingRows), colSpan: \(colSpan)"
-        }
+    private let workbookLead = """
+                           <?xml version=\"1.0\" encoding=\"UTF-8\"?>\
+                           <?mso-application progid=\"Excel.Sheet\"?>\
+                           <Workbook xmlns=\"urn:schemas-microsoft-com:office:spreadsheet\" \
+                           xmlns:x=\"urn:schemas-microsoft-com:office:excel\" \
+                           xmlns:ss=\"urn:schemas-microsoft-com:office:spreadsheet\" \
+                           xmlns:html=\"http://www.w3.org/TR/REC-html40\">
+                           """
+    private let workbookTrail = "</Workbook>"
+
+    private init() {
+
     }
 
     public class func export(_ sheets: [ExcelSheet], fileName: String, done: @escaping (URL?) -> Void) {
         DispatchQueue.global(qos: .background).async {
-            let resultUrl = performXMLExport(sheets, fileName: fileName)
+            let resultUrl = ExcelExport().performXMLExport(sheets, fileName: fileName)
             DispatchQueue.main.async { done(resultUrl) }
         }
     }
 
-    private class func performXMLExport(_ sheets: [ExcelSheet], fileName: String) -> URL? {
-        let file = fileUrl(name: fileName)
-
-        // all styles for this wokrbook
-        var styles = [String: String]() // id : value
-
-        // adds new style, returns it's ID
-        let appendStyle: (String) -> String = {
-            let id = "s\(styles.count)"
-            styles[id] = "<Style ss:ID=\"\(id)\">\($0)</Style>"
-            return id
-        }
-
+    private func performXMLExport(_ sheets: [ExcelSheet], fileName: String) -> URL? {
         var sheetsValues = [String]()
-        var remainingSpan = [RemainingSpan]()
         for sheet in sheets {
             // build sheet
-            var vIndex = 0
             var rows = [String]()
             for row in sheet.rows {
                 var cells = [String]()
-                vIndex = 0
+                startRow()
                 for (cellIndex, cell) in row.cells.enumerated() {
-                    while vIndex < remainingSpan.count && remainingSpan[vIndex].remainingRows > 0 {
-                        remainingSpan[vIndex].remainingRows -= 1
-                        vIndex += (remainingSpan[vIndex].colSpan + 1)
-                    }
-
-                    //data
-                    let data = "<Data ss:Type=\"\(cell.type.rawValue)\">\(cell.value)</Data>"
+                    computeCellIndex(cellIndex)
 
                     //style
-                    let styleId: String?
-                    let styleValue = TextAttribute.styleValue(for: cell.attributes)
-                    if styleValue.isEmpty {
-                        styleId = nil
-                    } else if let id = styles.first(where: { _, value in value.contains(styleValue) })?.key {
-                        styleId = id //reuse existing style
-                    } else {
-                        styleId = appendStyle(styleValue) //create new style
-                    }
+                    let styleId = self.styleId(for: cell.attributes)
 
-                    let mergeAcross = cell.colspan.map { " ss:MergeAcross=\"\($0)\"" } ?? ""
-                    let mergeDown = cell.rowspan.map { " ss:MergeDown=\"\($0)\"" } ?? ""
-                    let style = styleId != nil ? " ss:StyleID=\"\(styleId!)\"" : ""
-                    let indexAttribute = vIndex != cellIndex ? " ss:Index=\"\(vIndex+1)\"": ""
+                    let indexAttribute = generateIndexAttribute(cellIndex)
 
-                    //combine
-                    let lead = "<Cell\(style)\(mergeAcross)\(mergeDown)\(indexAttribute)>"
-                    let trail = "</Cell>"
+                    cells.append(cell.cellElement(withStyleId: styleId, withIndexAttribute: indexAttribute))
 
-                    cells.append([lead, data, trail].joined())
-
-                    // Setup mergeDown cells
-                    if let newMergeDownCount = cell.rowspan {
-                        while remainingSpan.count <= vIndex {
-                            remainingSpan.append(RemainingSpan(remainingRows: 0, colSpan: 0))
-                        }
-                        remainingSpan[vIndex] = RemainingSpan(remainingRows: newMergeDownCount,
-                                                              colSpan: cell.colspan ?? 0)
-                    }
-                    vIndex += 1
+                    setupMergeDownCells(cell)
                 }
-                while vIndex < remainingSpan.count {
-                    remainingSpan[vIndex].remainingRows -= 1
-                    vIndex += 1
-                }
+                decreaseRemainingRowSpanOnRemainingCells()
 
-                let rowOps = row.height.map { "ss:Height=\"\($0)\"" } ?? ""
-                let lead = "<Row \(rowOps)>"
-                let trail = "</Row>"
-                rows.append([lead, cells.joined(), trail].joined())
+                rows.append([row.lead, cells.joined(), row.trail].joined())
             }
 
-            // combine
-            let lead = "<Worksheet ss:Name=\"\(sheet.name)\"><Table>"
-            let trail = "</Table></Worksheet>"
-            sheetsValues.append([lead, rows.joined(), trail].joined())
+            // combine rows on sheet
+            sheetsValues.append([sheet.lead, rows.joined(), sheet.trail].joined())
 
             remainingSpan = [RemainingSpan]()
         }
 
-        let workbookLead = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><?mso-application progid=\"Excel.Sheet\"?><Workbook xmlns=\"urn:schemas-microsoft-com:office:spreadsheet\" xmlns:x=\"urn:schemas-microsoft-com:office:excel\" xmlns:ss=\"urn:schemas-microsoft-com:office:spreadsheet\" xmlns:html=\"http://www.w3.org/TR/REC-html40\">"
-        let workbookTrail = "</Workbook>"
+        return writeToFile(name: fileName, sheets: sheetsValues, totalRows: sheets.flatMap { $0.rows }.count)
+    }
 
-        let stylesValue = "<Styles>\(styles.values.joined())</Styles>"
-
+    // MARK: - Output functions
+    private func writeToFile(name fileName: String, sheets sheetsValues: [String], totalRows: Int) -> URL? {
+        let file = fileUrl(name: fileName)
         let content = [workbookLead, stylesValue, sheetsValues.joined(), workbookTrail].joined()
-        let totalRows = sheets.flatMap { $0.rows }.count
 
         // write content to file
         do {
@@ -274,9 +257,84 @@ public class ExcelExport {
         }
     }
 
-    class func fileUrl(name: String) -> URL {
+    private func fileUrl(name: String) -> URL {
         let docsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         return docsDir.appendingPathComponent("\(name).xls")
+    }
+
+    // MARK: - Styles feature utility properties and functions
+
+    // all styles for this workbook
+    private var styles = [String: String]() // id : value
+
+    // adds new style, returns it's ID
+    private func appendStyle(_ styleValue: String) -> String {
+        let id = "s\(styles.count)"
+        styles[id] = "<Style ss:ID=\"\(id)\">\(styleValue)</Style>"
+        return id
+    }
+
+    private func styleId(for attributes: [TextAttribute]) -> String? {
+        let styleValue = TextAttribute.styleValue(for: attributes)
+        let styleId: String?
+        if styleValue.isEmpty {
+            styleId = nil
+        } else if let id = styles.first(where: { _, value in value.contains(styleValue) })?.key {
+            styleId = id //reuse existing style
+        } else {
+            styleId = appendStyle(styleValue) //create new style
+        }
+        return styleId
+    }
+
+    private var stylesValue: String {
+        return "<Styles>\(styles.values.joined())</Styles>"
+    }
+
+    // MARK: - MergeDown feature utility types, properties and functions
+    struct RemainingSpan {
+        var remainingRows: Int
+        var colSpan: Int
+        var description: String {
+            return "remainingRows: \(remainingRows), colSpan: \(colSpan)"
+        }
+    }
+
+    private var vIndex: Int = 0
+    private var remainingSpan = [RemainingSpan]()
+
+    private func startRow() {
+        vIndex = 0
+    }
+
+    private func computeCellIndex(_ cellIndex: Int) {
+        while vIndex < remainingSpan.count && remainingSpan[vIndex].remainingRows > 0 {
+            remainingSpan[vIndex].remainingRows -= 1
+            vIndex += (remainingSpan[vIndex].colSpan + 1)
+        }
+    }
+
+    private func decreaseRemainingRowSpanOnRemainingCells() {
+        while vIndex < remainingSpan.count {
+            remainingSpan[vIndex].remainingRows -= 1
+            vIndex += 1
+        }
+    }
+
+    private func generateIndexAttribute(_ cellIndex: Int) -> String {
+        return vIndex != cellIndex ? " ss:Index=\"\(vIndex+1)\"": ""
+    }
+
+    private func setupMergeDownCells(_ cell: ExcelCell) {
+        // Setup mergeDown cells
+        if let newMergeDownCount = cell.rowspan {
+            while remainingSpan.count <= vIndex {
+                remainingSpan.append(RemainingSpan(remainingRows: 0, colSpan: 0))
+            }
+            remainingSpan[vIndex] = RemainingSpan(remainingRows: newMergeDownCount,
+                                                  colSpan: cell.colspan ?? 0)
+        }
+        vIndex += 1
     }
 }
 
