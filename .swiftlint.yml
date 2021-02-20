@@ -1,0 +1,6 @@
+identifier_name:
+ excluded:
+   - id
+switch_case_alignment:
+ indented_cases: true
+
